@@ -24,6 +24,7 @@ from redbot.core.data_manager import bundled_data_path
 from redbot.core.utils.chat_formatting import pagify, box
 from redbot.core.utils.menus import menu, DEFAULT_CONTROLS
 from redbot.core.utils.predicates import MessagePredicate
+from redbot.core.i18n import Translator, cog_i18n
 
 try:
     from motor.motor_asyncio import AsyncIOMotorClient
@@ -73,6 +74,7 @@ class Leveler(commands.Cog):
     __version__ = "2.0.5b"
 
     # noinspection PyMissingConstructor
+    @cog_i18n(_)
     def __init__(self, bot):
         self.bot = bot
         # fonts
@@ -147,7 +149,7 @@ class Leveler(commands.Cog):
             user = ctx.author
         user_id = user.id
         await self._destroy_user(user_id)
-        await ctx.send("Annnd He's gone! Fair warning, if that user does anything it WILL recreate an account, so it might be best to do this 'on their way out' so to speak.")
+        await ctx.send(_("User data removed - Note that it will be re-added if they talk again. Not much can be done about that."))
 
 
     @commands.cooldown(1, 10, commands.BucketType.user)
@@ -158,7 +160,7 @@ class Leveler(commands.Cog):
             user = ctx.author
         if user.bot:
             ctx.command.reset_cooldown(ctx)
-            await ctx.send("Bots don't have a reputation, y'know.")
+            await ctx.send(_("Bots don't have a reputation, y'know."))
         server = user.guild
 
             # creates user if doesn't exist
@@ -167,12 +169,12 @@ class Leveler(commands.Cog):
 
         # check if disabled
         if await self.config.guild(ctx.guild).disabled():
-            await ctx.send("**Leveler commands for this server are disabled!**")
+            await ctx.send(_("**Leveler commands for this server are disabled!**"))
             return
         userinfo = await db.users.find_one({"user_id": str(user.id)})
         userinfo["rep"]
         repCount = userinfo["rep"]
-        await ctx.send(f"{user.name} has {repCount} reputation Points.")
+        await ctx.send(_("{username} has {repCount} reputation Points.".format(username=user.name, repCount=repCount)))
 
 
     @commands.cooldown(1, 10, commands.BucketType.user)
@@ -196,7 +198,7 @@ class Leveler(commands.Cog):
 
         # check if disabled
         if await self.config.guild(ctx.guild).disabled():
-            await ctx.send("**Leveler commands for this server are disabled!**")
+            await ctx.send(_("**Leveler commands for this server are disabled!**"))
             return
 
         # no cooldown for text only
@@ -207,10 +209,10 @@ class Leveler(commands.Cog):
             async with ctx.channel.typing():
                 profile = await self.draw_profile(user, server)
                 file = discord.File(profile, filename="profile.png")
-                await channel.send(
+                await channel.send(_(
                     "**User profile for {}**".format(await self._is_mention(user)),
                     file=file,
-                )
+                ))
             await db.users.update_one(
                 {"user_id": str(user.id)},
                 {"$set": {"profile_block": curr_time}},
@@ -268,7 +270,7 @@ class Leveler(commands.Cog):
 
         # check if disabled
         if await self.config.guild(ctx.guild).disabled():
-            await ctx.send("**Leveler commands for this server are disabled!**")
+            await ctx.send(_("**Leveler commands for this server are disabled!**"))
             return
 
         # creates user if doesn't exist
@@ -283,12 +285,12 @@ class Leveler(commands.Cog):
             async with channel.typing():
                 rank = await self.draw_rank(user, server)
                 file = discord.File(rank, filename="rank.png")
-                await channel.send(
+                await channel.send(_(
                     "**Ranking & Statistics for {}**".format(
                         await self._is_mention(user)
                     ),
                     file=file,
-                )
+                ))
             await db.users.update_one(
                 {"user_id": str(user.id)},
                 {"$set": {"rank_block".format(server.id): curr_time}},
@@ -297,18 +299,18 @@ class Leveler(commands.Cog):
 
     async def rank_text(self, user, server, userinfo):
         em = discord.Embed(colour=user.colour)
-        em.add_field(
+        em.add_field(_(
             name="Server Rank",
             value="#{}".format(await self._find_server_rank(user, server)),
-        )
+        ))
         em.add_field(name="Reps", value=userinfo["rep"])
-        em.add_field(
+        em.add_field(_(
             name="Server Level", value=userinfo["servers"][str(server.id)]["level"]
-        )
+        ))
         em.add_field(name="Server Exp", value=await self._find_server_exp(user, server))
-        em.set_author(
+        em.set_author(_(
             name="Rank and Statistics for {}".format(user.name), url=user.avatar_url
-        )
+        ))
         em.set_thumbnail(url=user.avatar_url)
         return em
 
@@ -329,7 +331,7 @@ class Leveler(commands.Cog):
         user = ctx.author
 
         if await self.config.guild(ctx.guild).disabled():
-            await ctx.send("**Leveler commands for this server are disabled!**")
+            await ctx.send(_("**Leveler commands for this server are disabled!**"))
             return
 
         async with ctx.typing():
@@ -352,7 +354,7 @@ class Leveler(commands.Cog):
                 )
                 icon_url = self.bot.user.avatar_url
             elif "-global" in options:
-                title = "Global Exp Leaderboard for {}\n".format(self.bot.user.name)
+                title = _("Global Exp Leaderboard for {}\n".format(self.bot.user.name))
                 async for userinfo in db.users.find({}):
                     try:
                         users.append((userinfo["username"], userinfo["total_exp"]))
@@ -368,7 +370,7 @@ class Leveler(commands.Cog):
                 )
                 icon_url = self.bot.user.avatar_url
             elif "-rep" in options:
-                title = "Rep Leaderboard for {}\n".format(server.name)
+                title = _("Rep Leaderboard for {}\n".format(server.name))
                 async for userinfo in db.users.find({}):
                     if "servers" in userinfo and str(server.id) in userinfo["servers"]:
                         try:
@@ -379,15 +381,15 @@ class Leveler(commands.Cog):
                     if str(user.id) == userinfo["user_id"]:
                         user_stat = userinfo["rep"]
 
-                board_type = "Rep"
-                footer_text = "Your Rank: {}                  {}: {}".format(
+                board_type = _("Rep")
+                footer_text = _("Your Rank: {}                  {}: {}".format(
                     await self._find_server_rep_rank(user, server),
                     board_type,
                     user_stat,
-                )
+                ))
                 icon_url = server.icon_url
             else:
-                title = "Exp Leaderboard for {}\n".format(server.name)
+                title = _("Exp Leaderboard for {}\n".format(server.name))
                 async for userinfo in db.users.find({}):
                     try:
                         if (
@@ -408,12 +410,12 @@ class Leveler(commands.Cog):
                                 users.append((userinfo["user_id"], server_exp))
                     except KeyError:
                         pass
-                board_type = "Points"
-                footer_text = "Your Rank: {}                  {}: {}".format(
+                board_type = _("Points")
+                footer_text = _("Your Rank: {}                  {}: {}".format(
                     await self._find_server_rank(user, server),
                     board_type,
                     await self._find_server_exp(user, server),
-                )
+                ))
                 icon_url = server.icon_url
             sorted_list = sorted(users, key=operator.itemgetter(1), reverse=True)
 
@@ -426,18 +428,18 @@ class Leveler(commands.Cog):
                     if page >= 1 and int(option) <= pages:
                         page = int(str(option))
                     else:
-                        await ctx.send(
+                        await ctx.send(_(
                             "**Please enter a valid page number! (1 - {})**".format(
                                 str(pages)
                             )
-                        )
+                        ))
                         return
                     break
 
             msg = ""
-            msg += "Rank     Name                   (Page {}/{})     \n\n".format(
+            msg += _("Rank     Name                   (Page {}/{})     \n\n".format(
                 page, pages
-            )
+            ))
             rank = 1 + per_page * (page - 1)
             start_index = per_page * page - per_page
             end_index = per_page * page
@@ -481,13 +483,13 @@ class Leveler(commands.Cog):
         curr_time = time.time()
 
         if await self.config.guild(ctx.guild).disabled():
-            await ctx.send("**Leveler commands for this server are disabled!**")
+            await ctx.send(_("**Leveler commands for this server are disabled!**"))
             return
         if user and user.id == org_user.id:
-            await ctx.send("**You can't give a rep to yourself!**")
+            await ctx.send(_("**You can't give a rep to yourself!**"))
             return
         if user and user.bot:
-            await ctx.send("**You can't give a rep to a bot!**")
+            await ctx.send(_("**You can't give a rep to a bot!**"))
             return
         if "rep_block" not in org_userinfo:
             org_userinfo["rep_block"] = 0
@@ -501,21 +503,21 @@ class Leveler(commands.Cog):
             await db.users.update_one(
                 {"user_id": str(user.id)}, {"$set": {"rep": userinfo["rep"] + 1}}
             )
-            await ctx.send(
+            await ctx.send(_(
                 "**You have just given {} a reputation point!**".format(
                     await self._is_mention(user)
                 )
-            )
+            ))
         else:
             # calulate time left
             seconds = 43200 - delta
             if seconds < 0:
-                await ctx.send("**You can give a rep!**")
+                await ctx.send(_("**You can give a rep!**"))
                 return
 
             m, s = divmod(seconds, 60)
             h, m = divmod(m, 60)
-            await ctx.send(
+            await ctx.send(_(
                 "**You need to wait {} hours, {} minutes, and {} seconds until you can give reputation again!**".format(
                     int(h), int(m), int(s)
                 )
@@ -534,7 +536,7 @@ class Leveler(commands.Cog):
         userinfo = await db.users.find_one({"user_id": str(user.id)})
 
         if await self.config.guild(ctx.guild).disabled():
-            await ctx.send("**Leveler commands for this server are disabled!**")
+            await ctx.send(_("**Leveler commands for this server are disabled!**"))
             return
 
         # creates user if doesn't exist
@@ -587,7 +589,7 @@ class Leveler(commands.Cog):
 
         em = discord.Embed(description=msg, colour=user.colour)
         em.set_author(
-            name="Profile Information for {}".format(user.name),
+            name=_("Profile Information for {}".format(user.name)),
             icon_url=user.avatar_url,
         )
         await ctx.send(embed=em)
